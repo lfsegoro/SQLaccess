@@ -16,7 +16,7 @@ password_status = "not ok"
 def check_username():
     FrameWidgetC.frame_obj['20'].offdisplay()
     FrameWidgetC.frame_obj['10'].offdisplay()
-    username = EntryWidget.ent_obj['0010'].get_by_expression()
+    username = EntryWidget.ent_obj['000100'].get_by_expression()
     print("check_username called: ", username)
     global username_status
     obj = ""
@@ -27,9 +27,8 @@ def check_username():
             sys.stdout.flush()
             time.sleep(1)
         print("\n")
-        # sleep(2)
         try:
-            LabelWidget.label_obj['0020'].deconstruct('0020')
+            LabelWidget.label_obj['000200'].deconstruct('000200')
         except:
             pass #print('the object not exist yet')
         finally:
@@ -51,16 +50,16 @@ def check_username():
     print(username_status, password_status)
     return username
 def check_password():
-    password = EntryWidget.ent_obj['0011'].get_by_expression()
+    password = EntryWidget.ent_obj['000101'].get_by_expression()
     print("check_password called :", password)
     global password_status
     try:
-        LabelWidget.label_obj['0021'].deconstruct('0021')
+        LabelWidget.label_obj['000201'].deconstruct('000201')
     except:
         pass # print('obj above not created yet')
     finally:
         if password == "":
-            if '0020' not in LabelWidget.label_obj:
+            if '000200' not in LabelWidget.label_obj:
                 LabelWidget('00', 2, 1, 'Password can\'t Empty', '#f00')
             password_status = "not ok"
             #return
@@ -68,7 +67,6 @@ def check_password():
             password_status = "ok"
     print("username: " , username_status, "password: " , password_status)
     return password
-
 def insert_to_table(table_name, username):  # general purpose function
     InserSqlObj(table_name, 'username', username).insert()
 #  ==============================================================================
@@ -81,11 +79,22 @@ def tbl_structure(sql='describe userinfo'): # general purpose function
     result_list = [list(row) for row in rows]
     return result_list
 
+# def primarysql(table_name, sql=None):
+#     sql = SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_NAME = 'wimax' AND CONSTRAINT_NAME = 'PRIMARY'
+#
+#     tbl_structure(sql)
+#
+# def isemptytbl(table_name, sql=None):
+#     sql = ???
+#     a = tbl_structure(sql)
+#     if a:
+#         return False
+#     else:
+#         return True
 def tbl_query(username):  # general purpose function
     list_of_list = SelectSqlObj( 'userinfo', '*', 'username', username).select_n_convert()
     tabl = list_of_list[0]
     return tabl
-
 def tbl_userinfo(username):  # specific func for userinfo
     global username_status
     global password_status
@@ -104,29 +113,78 @@ def tbl_userinfo(username):  # specific func for userinfo
         else:
             EntryWidget('20', 1, i).method_3(str(userinfo[i]))
     ButtonUserinfo('20', 1, i+1, '^Submit Update^')
-    EntryWidget.ent_obj['2010'].bind_outside()
+    EntryWidget.ent_obj['200100'].bind_outside()
 
 
-#  ========================================================================================
-#  END userinfo function
-# def center_window(width=300, height=200):
-#     # get screen width and height
-#     screen_width = root.winfo_screenwidth()
-#     screen_height = root.winfo_screenheight()
-#     # calculate position x and y coordinates
-#     x = (screen_width/2) - (width/2)
-#     y = (screen_height/2.3) - (height/2)
-#     root.geometry('%dx%d+%d+%d' % (width, height, x, y))
+def sql_gnrl(sql):
+    print(sql)
+    mycursor.execute(sql)
+    rows = mycursor.fetchall()
+    # print(rows)
+    result_list = [list(row) for row in rows]
+    # print(result_list)
+    return result_list
+
+def def_level(val):
+    result, level = [], 'root'
+    try:
+        result = sql_gnrl('show ' + val)
+        if result:
+            return result, level
+    except:
+        result = sql_gnrl('describe ' + val)
+        if result:
+            level = 'table'
+            return result, level
+        else:
+            level = 'entry'
+            return result, level
+
+
+def iterate_newidget(result, frameid, column, val, level):
+    # print('checked2 ')
+    pairs = {}
+    stack = len(result)
+    #print(len(result))
+    for i in range(stack):
+        # print(result[i][0], end="\n")
+        val = result[i][0]
+
+        if i < 20:
+
+            # LabelWidget(frameid, column, i + row, val + ":")
+            LabelWidget(frameid, column, i , val + ":")
+
+            key = frameid + (str(column)).zfill(2) + (str(i)).zfill(2)
+
+            pairs[key] = val
+            print("checked i = ", i, frameid, val, key)
+            if level in ['root', 'tables'] :
+
+                LabelWidget.label_obj[key].binded(frameid, column, i, val)
+
+        else:
+            row=i
+            LabelWidget(frameid, column+2, i - 20, val + ":")
+
+            key = frameid + (str(column+2)).zfill(2) + (str(i - 20)).zfill(2)
+
+            pairs[key] = val
+            if level in ['root', 'tables'] :
+                LabelWidget.label_obj[key].binded(frameid, column, i-20, val)
+            print("checked i = ", i, frameid, val, key)
+
+    return len(result)
 
 root = tk.Tk()
-root.title('Freeradius Database Management')
-#center_window(600, 600)
+root.title('SQLTk')
 #root.geometry('600x400')
-
 class FrameWidgetC(tk.Frame):
     frame_obj = {}
-    def __init__(self, parent, column, row, sticky=None):
-        tk.Frame.__init__(self, parent)
+    def __init__(self, parent, frameid, sticky=None,  bg=None,):
+        tk.Frame.__init__(self, parent, bg=bg)
+        column=frameid[:1]
+        row=frameid[1:]
         self.id = str(column) + str(row)
         # label2 = tk.Label(self, text = "|----------------------------------------------------|")
         # label2.grid(column=0, row=0)
@@ -136,7 +194,8 @@ class FrameWidgetC(tk.Frame):
         # button1.grid()
         # button1.bind("<Button-1>", self.method1)
         # button1.bind("<Button-2>", self.method2)
-        self.grid(column=column, row=row, sticky=sticky)
+        self.grid(column=column, row=row, sticky=sticky, )
+        # self.grid_propagate(prop)
         FrameWidgetC.frame_obj[self.id] = self
 
     def method1(self, event):
@@ -151,117 +210,71 @@ class FrameWidgetC(tk.Frame):
     def ondisplay(self):
         self.grid()
 
-
-def special_l(sql):
-    #print(sql)
-    mycursor.execute(sql)
-    rows = mycursor.fetchall()
-    result_list = [list(row) for row in rows]
-    return result_list
-def trytobegeneral(a, frameid, col_offset, row_offset, split, val):
-
-    root_tbl = a
-    pairs = {}
-    stack = len(root_tbl) // split  # later will work to support split more than 2, currently only support split 1 or 2.
-    for i in range(len(root_tbl)):
-        # print(root_tbl[i][0], end="\n")
-        val = root_tbl[i][0]
-        if i < stack:
-            LabelWidget(frameid, col_offset, i + row_offset, val + ":")
-            key = frameid + str(col_offset) + str(i + row_offset)
-            pairs[key] = val
-            LabelWidget.label_obj[key].invokebind_gnrl(key, val, stack)
-        else:
-            LabelWidget(frameid, col_offset + split, i + row_offset - stack, val + ":")
-            key = frameid + str(col_offset + split) + str(i + row_offset - stack)
-            pairs[key] = val
-            LabelWidget.label_obj[key].invokebind_gnrl(key, val, stack)
 class LabelWidget:
     label_obj = {}
-
     def __init__(self, frameid, column, row, text, fg='black'):
-        self.id = frameid + str(column) + str(row)
-        # print(self.id)
-        self.label = tk.Label(FrameWidgetC.frame_obj[frameid], text = text, fg=fg)
+        self.id = frameid + (str(column)).zfill(2) + (str(row)).zfill(2)
+        print(self.id)
+        self.label = tk.Label(FrameWidgetC.frame_obj[frameid], text = text, fg=fg, cursor='hand1')
         self.label.grid(column=column, row=row)
         LabelWidget.label_obj[self.id] = self
-
+        self.label.bind("<Expose>", self.visibilityChanged)
+    def visibilityChanged(self, event):
+        print('i am obstructed ', self.id)
     def deconstruct(self, key):
         self.label.destroy()
         LabelWidget.label_obj.pop(key)
-    def invokebind(self, q):
-        self.label.bind("<Button-1>", lambda q: exec("print('magic')"))
-    def invokebind_gnrl(self, key, value, len):  # note: event not stated in parameter althoudh use by lambda
-        self.label.bind("<Button-1>", lambda event, key=key, value=value, len=len
-                         : self.method_gnrl(key, value, len))
-    def method_gnrl(self, key, value, len):  # currently the container will be frame '01'
-        #FrameWidgetC.frame_obj['20'].offdisplay()
-        print(key," ", value)
-        '''ready to work on pairs'''
-        #a = tbl_structure('describe ' + value)
-        # b = (a[1][0])
-        a = self.special_l('30', 0, 0, 1, value)
-        if a == 'dead end':
-            print ('dead end on : ', key, value)
-            for i in range(len):
-                pass
-        #inside_table_struct = ('describe' + value)
-    def summon_other_widget(self, frameid, col_offset, row_offset, split, val=''):
-        self.label.bind("<Button-3>", lambda event, frameid=frameid, col_offset=col_offset,
-                         row_offset=row_offset, split=split: self.special_l(frameid,
-                         col_offset, row_offset, split, val))
+    def binded(self, frameid, column, row, val):
+        #frameid= str(int(frameid[:1])+1) + frameid[1:]
+        #print(frameid)
+        self.label.bind("<Button-3>", lambda event, frameid=frameid, column=column,
+                         row=row, val=val: self.special_l(frameid,
+                         column, row, val ))
 
-        #print(LabelWidget.label_obj)
-    def special_l(self, frameid, col_offset, row_offset, split, val ):  # define each dynamic widget to each event
-        a = []
-        try:
-            print("del me")
-            sql = 'describe ' + val
-            a = special_l(sql)
-            print("try success ", a)
-            b = True
-        except:
-            try:
-                print("del me2  ", val)
-                sql = 'show ' + val
-                a = special_l(sql)
-                print("exeption, try ng, ", a)
-                b = True
-            except:
-                return 'dead end'
+    def special_l(self, frameid, column, row, val):  # define each dynamic widget to each event
+        print('event detected in function special_l for:', val)
+        result, level = def_level(val)
+        print(result)
+        print(level, frameid)
+        shift = 0
+        match level:
+         case 'root':
+            shift = 1
+            print("del me1  ", frameid, val)
+            frameid = str(int(frameid[:1])+shift) + frameid[1:]
+            for widget in FrameWidgetC.frame_obj[frameid].winfo_children():
+                  widget.destroy()
+            iterate_newidget(result, frameid, column, val, level)
+            print('checked4', frameid, column, row, val)
 
-        if a:
-            trytobegeneral(a, frameid, col_offset, row_offset, split, val)
-        #
-        # root_tbl = special_l(sql)
-        # pairs = {}
-        # stack = len(root_tbl)//split  # later will work to support split more than 2, currently only support split 1 or 2.
-        # for i in range(len(root_tbl)):
-        #     # print(root_tbl[i][0], end="\n")
-        #     val = root_tbl[i][0]
-        #     if i < stack:
-        #         LabelWidget(frameid, col_offset, i+row_offset, val + ":")
-        #         key = frameid + str(col_offset) + str(i+row_offset)
-        #         pairs[key] = val
-        #         LabelWidget.label_obj[key].invokebind_gnrl(key, val)
-        #     else:
-        #         LabelWidget(frameid, col_offset+split, i+row_offset-stack, val + ":")
-        #         key = frameid + str(col_offset+split) + str(i+row_offset-stack)
-        #         pairs[key] = val
-        #         LabelWidget.label_obj[key].invokebind_gnrl(key, val)
-        #print(LabelWidget.label_obj)
+         case 'table':
+            shift = 1
+            frameid = str(int(frameid[:1]) + shift) + frameid[1:]
+            print("del me2 :", frameid, val)
+            for widget in FrameWidgetC.frame_obj[frameid].winfo_children():
+                 widget.destroy()
+            for widget in FrameWidgetC.frame_obj[str(int(frameid[:1]) + shift) + frameid[1:]].winfo_children():
+                 widget.destroy()
+            print("del me2 :", frameid, val)
+
+            lenght = iterate_newidget(result, frameid, column, val, level)
+            print(lenght)
+            # for widget in FrameWidgetC.frame_obj['30'].winfo_children():
+            #     widget.destroy()
+            for i in range(lenght):
+                #EntryWidget(frameid, column+1, i)
+                if i < 20:
+                    EntryWidget(frameid, column + 1, i)
+                else:
+                    EntryWidget(frameid, column + 3, i-20)
 
 
-class ScrollBar:
-    def __init__(self, column, row, columnspan='10', sticky=tk.NE):
-        self.sb = tk.Scrollbar(root)
-        self.sb.grid(column=column, row=row, columnspan=columnspan, sticky=sticky)
 class EntryWidget:
     ent_obj = {}
     def __init__(self, frameid, column, row, text='', fg='black', state='normal'):
         self.v = tk.StringVar()
         self.v.set(text)
-        self.id = frameid + str(column) + str(row)  # a unique identifier for the object/widget
+        self.id = frameid + (str(column)).zfill(2) + (str(row)).zfill(2)  # a unique identifier for the object/widget
         # if self.id != '2010':
         if 1==1:
             self.entry = tk.Entry(FrameWidgetC.frame_obj[frameid], textvariable=self.v, state=state, fg=fg)
@@ -269,9 +282,6 @@ class EntryWidget:
             self.entry.bind("<KeyRelease>", self.method)
         else:
             pass
-            # self.entry1 = tk.Entry(FrameWidgetC.frame_obj[frameid], textvariable=self.v, state=state, fg='red')
-            # self.entry1.grid(column=column, row=row)
-            # self.entry1.bind("<Button-1>", self.special)
         EntryWidget.ent_obj[self.id] = self
 
     def method(self, event):
@@ -283,87 +293,71 @@ class EntryWidget:
     def bind_outside(self):
         self.entry.bind("<Button-1>", self.special)
     def special(self, e):
-        tbl_userinfo(EntryWidget.ent_obj['0010'].get_by_expression())
+        tbl_userinfo(EntryWidget.ent_obj['000100'].get_by_expression())
         print("result of chain reaction")
     def destruct(self):
         self.entry.destroy()
-
-
 class ButtonWidget:
+    btn_obj = {}
     def __init__(self, frameid, column, row, text='default'):
         self.button = tk.Button(FrameWidgetC.frame_obj[frameid], text=text)
+        self.id = frameid + (str(column)).zfill(2) + (str(row)).zfill(2)
         self.button.grid(column=column, row=row)
         self.button.bind("<Button-1>", self.method)
-        self.button.bind("<Button-2>", self.method2)
-        #self.button.bind("<Button-3>", self.method3)
+        ButtonWidget.btn_obj[self.id] = self
 
-    def method3(self, event):
-        FrameWidgetC.frame_obj['20'].method3()
-    def method2(self, event):
-        EntryWidget.ent_obj['2010'].bind_outside()
     def method(self, event):
-        if "0020" in LabelWidget.label_obj:
+        if "000200" in LabelWidget.label_obj:
             print("user exist")
         else:
             print("user available")
-        FrameWidgetC.frame_obj['20'].offdisplay()
-        FrameWidgetC.frame_obj['10'].offdisplay()
+        for widget in FrameWidgetC.frame_obj['20'].winfo_children():
+            widget.destroy()
+        for widget in FrameWidgetC.frame_obj['10'].winfo_children():
+            widget.destroy()
         username = check_username()  # inside this func there is branch to the End of Routine
         password = check_password()
         if password_status == 'ok' and username_status == "ok":
-            if '0020' in LabelWidget.label_obj:
-                LabelWidget.label_obj['0020'].deconstruct('0020')
-            if '0021' in LabelWidget.label_obj:
-                LabelWidget.label_obj['0021'].deconstruct('0021')
             LabelWidget('00', 2, 0, 'Username Created', 'green')
-            InserSqlObj('radcheck', 'username, value', username + "\' , \'"   # <<create username
-                        + password).insert()
+            InserSqlObj('radcheck', 'username, value', username + "\' , \'"
+                        + password).insert()  # <<create username
             InserSqlObj('userinfo', 'username', username).insert()  # <<create userinfo
             FrameWidgetC.frame_obj['20'].ondisplay()
             FrameWidgetC.frame_obj['10'].ondisplay()
             tbl_userinfo(username)
-
 class ButtonUserinfo(ButtonWidget):
     def __init__(self, frameid, column, row, text='default'):
         super().__init__(frameid, column, row, text)
         self.button.bind("<Button-1>", self.method)
     def method(self, event):
-        username = EntryWidget.ent_obj['2011'].get_by_expression()
+        username = EntryWidget.ent_obj['200101'].get_by_expression()
         userinfo = tbl_query(username)
         userinfo_struct = tbl_structure()
         print(userinfo_struct, "\n", "\n", "\n", )
         for i in range(2, len(userinfo)):
-            # UpdateSqlTbl("userinfo", userinfo_struct[i][0], username,
-            #              EntryWidget.ent_obj["201" + str(i)].get_by_expression()).update()
-        # if i<1:
-            #print(userinfo_struct[i][0], ", " ,EntryWidget.ent_obj["201" + str(i)].method2())
             try:  # to skip if errors occur in iterations
                 UpdateSqlTbl("userinfo", userinfo_struct[i][0], username,
-                             EntryWidget.ent_obj["201" + str(i)].get_by_expression()).update()
+                             EntryWidget.ent_obj["2001" + (str(i)).zfill(2)].get_by_expression()).update()
             except:
                 print('skipped ?')
             finally:
                 print('end')
 
-FrameWidgetC(root, 0, 0, 'nw') ;FrameWidgetC(root, 1, 0, 'n'); FrameWidgetC(root, 2, 0, 'n');FrameWidgetC(root, 3, 0, 'n')
-FrameWidgetC(root, 0, 1)
+FrameWidgetC(root, '00',  "nw")
+# FrameWidgetC(root, '10' ,"n"); FrameWidgetC(root, '20', "n")
+# FrameWidgetC(root, '30', 'yellow', "n")
+# FrameWidgetC(root, '01','lightgreen', "n" );FrameWidgetC(root, '02','lightgreen', "n" )
 
 LabelWidget('00', 0, 0, "Username: "); EntryWidget('00', 1, 0, )
 LabelWidget('00', 0, 1, "Password: "); EntryWidget('00', 1, 1, )
 ButtonWidget('00', 1, 2, 'Check/Submit')  # all algorithm START HERE, and will loop back here.
-#print(LabelWidget.label_obj)
-LabelWidget.label_obj['0000'].summon_other_widget('00', 0, 3, 2, 'tables')  # clue: right click on 'username' label widget
-#print(LabelWidget.label_obj)
-
-#ScrollBar(100,0)
-# val = 'tables'
-# try:
-#     sql = 'describe ' + val
-#     a = special_l(sql)
-#     print("try success ", a)
-# except:
-#     sql = 'show ' + val
-#     a = special_l(sql)
-#     print("exeption, try ng, ", a)
-
+# dynamic widget generating
+frameid, column, row, val = '10', 0 ,0 , 'tables'
+FrameWidgetC(root,frameid,'n')
+FrameWidgetC(root, str(int(frameid[:1])+1) + frameid[1:], 'n')
+FrameWidgetC(root, str(int(frameid[:1])+2) + frameid[1:], 'n')
+FrameWidgetC(root, str(int(frameid[:1])+3) + frameid[1:], 'n')
+FrameWidgetC(root, str(int(frameid[:1])+4) + frameid[1:], 'n')
+LabelWidget.label_obj['000000'].binded(frameid,column,row,val)  # clue: right click on 'username' label widget
+#print (str(int(frameid[:1])+1) + frameid[1:])
 root.mainloop()
